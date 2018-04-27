@@ -5,6 +5,7 @@ Created on Fri Apr 27 08:14:12 2018
 @author: Madhur Kashyap 2016EEZ8350
 """
 
+import os
 import numpy as np
 import keras.backend as K
 from itertools import product
@@ -31,7 +32,7 @@ def batch_temporal_categorical(y,n_classes):
         yoh[i]=oh;
     return yoh;
 
-def train_model(model,save_path,trgen,valgen,
+def train_model(model,trgen,valgen,prefix,folder='./models',
                 epochs=1,verbose=1,ctc_mode=False,
                 loss=binary_crossentropy,
                 optimizer=SGD(lr=0.02, decay=1e-6, momentum=0.9, 
@@ -42,7 +43,8 @@ def train_model(model,save_path,trgen,valgen,
     if ctc_mode:
         raise ValueError("CTC based model training is not yet implemented")
 
-    checkpointer = ModelCheckpoint(filepath=save_path, verbose=1)
+    path = os.path.join(folder,prefix+'.{epoch:02d}-{val_loss:.2f}.hdf5')
+    checkpointer = ModelCheckpoint(filepath=path, verbose=1)
     model.compile(optimizer=optimizer,loss=loss,metrics=metrics);
     hist = model.fit_generator(generator=trgen,
                                validation_data=valgen,
