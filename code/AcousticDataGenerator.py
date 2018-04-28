@@ -172,7 +172,7 @@ class AcousticDataGenerator:
             opseq.append(self.outmap[0][symbol]);
         return opseq;
     
-    def gen_split_batch(self,split,idxs):
+    def gen_split_batch(self,split,idxs,):
         data=self.get_split_data(split,idxs);
         #print("Debug: Data len = %d" % len(data));
         bfeats=[]; iplen=[]; oplen=[]; labels=[];

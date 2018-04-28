@@ -9,22 +9,23 @@ import os
 import numpy as np
 import keras.backend as K
 from Utils import create_folder, dump_data
-from itertools import product
 from keras.utils import to_categorical
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import SGD
 from keras.models import Model
 from keras.layers import Input, Lambda
 
-def w_categorical_crossentropy(y_true, y_pred, weights):
-    nb_cl = len(weights)
-    final_mask = K.zeros_like(y_pred[:, 0])
-    y_pred_max = K.max(y_pred, axis=1)
-    y_pred_max = K.reshape(y_pred_max, (K.shape(y_pred)[0], 1))
-    y_pred_max_mat = K.equal(y_pred, y_pred_max)
-    for c_p, c_t in product(range(nb_cl), range(nb_cl)):
-        final_mask += (weights[c_t, c_p] * y_pred_max_mat[:, c_p] * y_true[:, c_t])
-    return K.categorical_crossentropy(y_pred, y_true) * final_mask
+def weighted_categorical_crossentropy(target,output,weights=1.0):
+    # scale preds so that the class probas of each sample sum to 1
+    output /= K.tf.reduce_sum(output,
+                                len(output.get_shape()) - 1,
+                                True)
+    
+    class_weights = K.tf.constant(weights);
+    _epsilon = K.tf.convert_to_tensor(K.epsilon(), output.dtype.base_dtype)
+    output = K.tf.clip_by_value(output, _epsilon, 1. - _epsilon)
+    return  -K.tf.reduce_sum(K.tf.multiply(target * K.tf.log(output),class_weights),
+                           len(output.get_shape()) - 1)
 
 def ctc_func(args):
     y_pred, y_true, input_length, label_length = args
@@ -56,31 +57,33 @@ def train_model(model,trgen,valgen,prefix,
                 optimizer=SGD(lr=0.02, decay=1e-6, momentum=0.9, 
                     nesterov=True, clipnorm=5),
                 steps_per_epoch=100, validation_steps=10,
-                metrics = ['acc']):
+                metrics = ['acc'],save_period=0,class_weight=None):
 
     model_path = os.path.join(model_folder,prefix+'.{epoch:02d}-{val_loss:.2f}.hdf5')
     pickle_path = os.path.join(history_folder,prefix+'.pkl');
     create_folder(model_folder); create_folder(history_folder);
-    checkpointer = ModelCheckpoint(filepath=model_path, verbose=1)
+    callbacks = [];
+    if save_period>0:
+        callbacks.append(ModelCheckpoint(filepath=model_path,period=save_period,verbose=1));
     if loss=='ctc':
         ctcmodel = add_ctc(model);
-        ctcmodel.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=optimizer)
+        ctcmodel.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=optimizer, sample_weight_mode="temporal")
         hist = ctcmodel.fit_generator(generator=trgen,
                                validation_data=valgen,
-                               epochs=epochs,
+                               epochs=epochs,class_weight=class_weight,
                                steps_per_epoch=steps_per_epoch,
                                validation_steps=validation_steps,                           
-                               callbacks=[checkpointer],
-                               verbose=verbose);
+                               callbacks=callbacks,
+                               verbose=verbose,shuffle=False);
     else:    
-        model.compile(optimizer=optimizer,loss=loss,metrics=metrics);
+        model.compile(optimizer=optimizer,loss=loss,metrics=metrics,sample_weight_mode="temporal");
         hist = model.fit_generator(generator=trgen,
                                validation_data=valgen,
                                epochs=epochs,
                                steps_per_epoch=steps_per_epoch,
                                validation_steps=validation_steps,                           
-                               callbacks=[checkpointer],
-                               verbose=verbose);
+                               callbacks=callbacks,
+                               verbose=verbose,shuffle=False);
 
     dump_data(hist.history,pickle_path);
     return hist
