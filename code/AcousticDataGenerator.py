@@ -176,28 +176,24 @@ class AcousticDataGenerator:
         data=self.get_split_data(split,idxs);
         #print("Debug: Data len = %d" % len(data));
         bfeats=[]; iplen=[]; oplen=[]; labels=[];
+        batch_size = len(idxs);
         for a,seqdf in data:
             sr,n_as,feats=self.get_audio_features(a);
             bfeats.append(self.fit(feats));
             iplen.append(len(bfeats[-1]));
-            #if self.mode=="phoneme":
-            #    sphone = self.corpus.get_silence_phoneme();
-            #    idxs = [0,seqdf.index[-1]]
-            #    for i in idxs:
-            #        if seqdf.loc[i][2]==sphone: seqdf.drop(index=i);
             opseq = self.encode_output(seqdf,sr,iplen[-1]);
             oplen.append(len(opseq));
             labels.append(opseq);
         max_iplen=max(iplen); max_oplen=max(oplen);
         pad_label=0 if self.output=="boundary" else \
                     list(self.outmap[0].values())[-1];
-        X = np.zeros([self.mbatch_size,max_iplen,bfeats[-1].shape[1]]);
-        Y = np.ones([self.mbatch_size,max_oplen])*pad_label;
-        for i in range(0,self.mbatch_size):
+        X = np.zeros([batch_size,max_iplen,bfeats[-1].shape[1]]);
+        Y = np.ones([batch_size,max_oplen])*pad_label;
+        for i in range(0,batch_size):
             feats=bfeats[i]; X[i,0:feats.shape[0],:]=feats;
             Y[i,0:len(labels[i])]=labels[i];
         if self.ctc_mode:
-            outputs = {'ctc': np.zeros(self.mbatch_size)}
+            outputs = {'ctc': np.zeros(batch_size)}
             inputs = {'the_input': X, 
                       'the_labels': Y, 
                       'input_length': np.array(iplen),
