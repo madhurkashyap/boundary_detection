@@ -29,8 +29,9 @@ rootlog.info('Starting new session');
 corpus = Timit(root=sys.argv[1]);
 corpus.split_validation();
 rootlog.info(corpus.report_statistics(folder='report/images'));
-adg = AcousticDataGenerator(corpus=corpus,mbatch_size=8);
-adg.fit_train(n_samples=10);
+adg = AcousticDataGenerator(corpus=corpus,mbatch_size=32);
+adg.fit_train(n_samples=100);
 trgen = adg.train_generator();
-model = uni_gru(input_dim=adg.feature_dim,units=150,output_dim=adg.n_classes)
-train_model(model,'./uni_gru',adg.train_generator(),adg.valid_generator());
+model = uni_gru(input_dim=adg.feature_dim,units=200,output_dim=adg.n_classes)
+train_model(model,adg.train_generator(),adg.valid_generator(),'uni_gru_200',
+            epochs=20,steps_per_epoch=100,verbose=1,save_period=5);

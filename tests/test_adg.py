@@ -23,11 +23,14 @@ logfile = prog+'.log'
 rootlog = initlog(logfile,level=logging.DEBUG);
 
 rootlog.info('Starting new session');
-corpus = Timit(root=sys.argv[1])
+if len(sys.argv)>1:
+    corpus = Timit(root=sys.argv[1])
+else:
+    corpus = Timit(root='C:/Users/nxa17016/ML/pyml/RNN/assignment3/dataset')
 corpus.split_validation();
-adg = AcousticDataGenerator(corpus=corpus);
+adg = AcousticDataGenerator(corpus=corpus,mbatch_size=32);
 adg.fit_train(n_samples=10);
 trgen = adg.train_generator();
-valgen = adg.valid_generator();
-X,Y = trgen.__next__();
-Xv,Yv = valgen.__next__();
+for i in range(113):
+    print ("INFO: Generator cycle %d"%i);
+    X,Y = next(trgen);
