@@ -28,13 +28,13 @@ def save_figure(prefix,folder=None,size=None,imgfmt='jpg'):
         fn = os.path.join(folder,fn);
     plt.savefig(fn);
     
-def plot_keras_history(history,suptitle=''):
+def plot_keras_history(history,suptitle='',figsize=(8,4)):
     '''
     Accepts history dictionary object as input. Plots both training
     and validation accuracy and loss curves against epochs
     '''
     x = list(range(len(history['acc'])));
-    f, (ax1, ax2) = plt.subplots(nrows=1,ncols=2,figsize=(7,3))
+    f, (ax1, ax2) = plt.subplots(nrows=1,ncols=2,figsize=figsize)
     f.suptitle(suptitle)
     #ax1.set_title('Loss')
     ax1.set_xlabel('# Epoch')
