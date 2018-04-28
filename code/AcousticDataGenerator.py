@@ -63,7 +63,7 @@ class AcousticDataGenerator:
     def init_output_map(self):
         if self.output=="sequence":
             if self.mode=="phoneme":
-                labels=self.corpus.get_vocab_phoneme_list();
+                labels=self.corpus.get_phoneme_list();
             elif self.mode=="grapheme":
                 labels=list("abcdefghijklmnopqrstuvwxyz'")
             else:
@@ -140,7 +140,7 @@ class AcousticDataGenerator:
         assert hasattr(self,'outmap'), "Output map not initialized";
         opseq = [];
         if self.output=="boundary":
-            opseq = [self.wb for i in range(0,len(seq)+1)]
+            opseq = [self.outmap[0][self.bsymbol] for i in range(0,len(seq)+1)]
         elif self.output=="sequence":
             for x in seq:
                 opseq.append(self.outmap[0][x]);
@@ -164,11 +164,6 @@ class AcousticDataGenerator:
         assert hasattr(self,'outmap'), "Output map not initialized";
         ns_win = math.ceil(self.mfcc_win*sr);
         ns_step = math.ceil(self.mfcc_step*sr);
-        sphone = self.corpus.get_silence_phoneme();
-        if self.mode=="phoneme":
-            idxs = [0,seqdf.index[-1]]
-            for i in idxs:
-                if seqdf.loc[i][2]==sphone: seqdf.drop(index=i);
         bnds=seqdf[0].values; opseq=[];
         for i in range(nseq):
             start = i*ns_step; end = start+ns_win;
@@ -179,11 +174,17 @@ class AcousticDataGenerator:
     
     def gen_split_batch(self,split,idxs):
         data=self.get_split_data(split,idxs);
+        #print("Debug: Data len = %d" % len(data));
         bfeats=[]; iplen=[]; oplen=[]; labels=[];
         for a,seqdf in data:
             sr,n_as,feats=self.get_audio_features(a);
             bfeats.append(self.fit(feats));
             iplen.append(len(bfeats[-1]));
+            #if self.mode=="phoneme":
+            #    sphone = self.corpus.get_silence_phoneme();
+            #    idxs = [0,seqdf.index[-1]]
+            #    for i in idxs:
+            #        if seqdf.loc[i][2]==sphone: seqdf.drop(index=i);
             opseq = self.encode_output(seqdf,sr,iplen[-1]);
             oplen.append(len(opseq));
             labels.append(opseq);
@@ -199,9 +200,9 @@ class AcousticDataGenerator:
             outputs = {'ctc': np.zeros(self.mbatch_size)}
             inputs = {'the_input': X, 
                       'the_labels': Y, 
-                      'input_length': iplen, 
-                      'label_length': oplen 
-                      }
+                      'input_length': np.array(iplen),
+                      'label_length': np.array(oplen)
+                     }
         else:
             outputs=batch_temporal_categorical(Y,self.n_classes);
             inputs=X;
@@ -209,7 +210,8 @@ class AcousticDataGenerator:
             
     def train_generator(self):
         while True:
-            idxs = self.train_idxs[self.ibtrain:self.mbatch_size]
+            idxs = self.train_idxs[self.ibtrain:self.ibtrain+self.mbatch_size]
+            #print("DEBUG: len(idxs)=%d, ibtrain=%d" %(len(idxs),self.ibtrain));
             mbatch = self.gen_split_batch('training',idxs)
             self.ibtrain += self.mbatch_size;
             if self.ibtrain >= self.n_train:
@@ -218,7 +220,7 @@ class AcousticDataGenerator:
 
     def valid_generator(self):
         while True:
-            idxs = self.valid_idxs[self.ibvalid:self.mbatch_size]
+            idxs = self.valid_idxs[self.ibvalid:self.ibvalid+self.mbatch_size]
             mbatch = self.gen_split_batch('validation',idxs)
             self.ibvalid += self.mbatch_size;
             if self.ibvalid >= self.n_valid:
@@ -227,7 +229,7 @@ class AcousticDataGenerator:
         
     def test_generator(self):
         while True:
-            idxs = self.test_idxs[self.ibtest:self.mbatch_size]
+            idxs = self.test_idxs[self.ibtest:self.ibtest+self.mbatch_size]
             mbatch = self.gen_split_batch('testing',idxs)
             self.ibtest += self.mbatch_size;
             if self.ibtest >= self.n_test:

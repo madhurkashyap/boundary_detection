@@ -14,13 +14,15 @@ from keras.layers import (BatchNormalization, Conv1D, Dense, Input,
 def bidi_gru(input_dim, units, output_dim,gpu=False):
     model = Sequential();
     if gpu:
-        model.add(Bidirectional(CuDNNGRU(units, return_sequences=True,
-                                batch_input_shape=(None,None,input_dim))))
+        model.add(Bidirectional(CuDNNGRU(units, return_sequences=True),
+                               batch_input_shape=(None,None,input_dim)))
     else:
-        model.add(Bidirectional(GRU(units, return_sequences=True,
-                                batch_input_shape=(None,None,input_dim))))
+        model.add(Bidirectional(GRU(units, return_sequences=True),
+                               batch_input_shape=(None,None,input_dim)))
 
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
+    # Allow every sample to have different length for ctc
+    model.output_length = lambda x: x
     print(model.summary())
     return model
 
@@ -33,5 +35,21 @@ def uni_gru(input_dim, units, output_dim, gpu=False):
         model.add(GRU(units, return_sequences=True,
                            batch_input_shape=(None,None,input_dim)))
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
+    # Allow every sample to have different length for ctc
+    model.output_length = lambda x: x
+    print(model.summary())
+    return model
+
+def uni_gru_ctc(input_dim,units,output_dim,gpu=False):
+    input_data = Input(name='the_input', shape=(None, input_dim))
+    if gpu:
+        simp_rnn = CuDNNGRU(output_dim, return_sequences=True, 
+                       implementation=2, name='rnn')(input_data)
+    else:
+        simp_rnn = GRU(output_dim, return_sequences=True, 
+                       implementation=2, name='rnn')(input_data)
+    y_pred = Activation('softmax', name='softmax')(simp_rnn)
+    model = Model(inputs=input_data, outputs=y_pred)
+    model.output_length = lambda x: x
     print(model.summary())
     return model

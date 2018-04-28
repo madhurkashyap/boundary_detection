@@ -53,3 +53,10 @@ def gen_bidi_map(elist):
 
 def is_array_or_list(v):
     return isinstance(v,(np.ndarray,list))
+
+def dump_data(data,filepath):
+    import _pickle as pickle
+    f = open(filepath,'wb');
+    pickle.dump(data,f);
+    f.close();
+
