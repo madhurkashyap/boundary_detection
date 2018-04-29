@@ -20,7 +20,8 @@ class AcousticDataGenerator:
     def __init__(self,corpus,mode="phoneme",output="boundary",ctc_mode=False,
                  mbatch_size=32,audio_feature='mfcc',
                  sgram_step=10,sgram_window=20,sgram_freq=8000,
-                 n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roca=True):
+                 n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roc=False,
+                 mfcc_roa=False):
         assert audio_feature=='mfcc' or audio_feature=='spectrogrm', \
         "Unsupported audio feature request "+audio_feature+\
         ". Supported are {mfcc, spectrogram}"
@@ -34,7 +35,8 @@ class AcousticDataGenerator:
         self.sgram_window = sgram_window;
         self.sgram_freq = sgram_freq;
         self.n_mfcc = n_mfcc;
-        self.mfcc_roca = mfcc_roca;
+        self.mfcc_roc = mfcc_roc;
+        self.mfcc_roa = mfcc_roa;
         self.mode = mode;
         self.output = output;
         self.ctc_mode=ctc_mode;
@@ -125,7 +127,8 @@ class AcousticDataGenerator:
         sr,y = read_sph(file);
         if self.audio_feature=='mfcc':
             features = extract_mfcc_features(y,sr,n_mfcc=self.n_mfcc,
-                                             roca=self.mfcc_roca);
+                                             roc=self.mfcc_roc,
+                                             roa=self.mfcc_roa);
         return sr,len(y),features;
     
     def encode_output(self,seqdf,sr,input_length):

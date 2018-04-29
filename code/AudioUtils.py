@@ -16,13 +16,13 @@ def read_sph(path):
     sph = SPHFile(path);
     return sph.format['sample_rate'], sph.content,
 
-def extract_mfcc_features(y,sr,n_mfcc=13,roca=False):
+def extract_mfcc_features(y,sr,n_mfcc=13,roc=False,roa=False):
     """
     fmax has been default to 8k allowing 4khz audio frequency samples
     """
     m = mfcc(y,samplerate=sr,numcep=n_mfcc);
-    if roca:
-        d = librosa.feature.delta(m);
-        dd = librosa.feature.delta(d);
-        m = np.hstack((m,d,dd));
+    if roc or roa: d = librosa.feature.delta(m);
+    if roa: dd = librosa.feature.delta(d);
+    if roc: m = np.hstack((m,d));
+    if roa: m = np.hstack((m,dd));
     return m

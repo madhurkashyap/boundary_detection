@@ -24,8 +24,6 @@ def bidi_lstm2(input_dim,units1,units2,output_dim,gpu=False):
         model.add(Bidirectional(LSTM(units2, return_sequences=True),
                                batch_input_shape=(None,None,input_dim)))
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
-    # Allow every sample to have different length for ctc
-    model.output_length = lambda x: x
     print(model.summary())
     return model
 
@@ -39,8 +37,6 @@ def bidi_gru(input_dim, units, output_dim,gpu=False):
                                batch_input_shape=(None,None,input_dim)))
 
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
-    # Allow every sample to have different length for ctc
-    model.output_length = lambda x: x
     print(model.summary())
     return model
 
@@ -53,8 +49,18 @@ def uni_gru(input_dim, units, output_dim, gpu=False):
         model.add(GRU(units, return_sequences=True,
                            batch_input_shape=(None,None,input_dim)))
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
-    # Allow every sample to have different length for ctc
-    model.output_length = lambda x: x
+    print(model.summary())
+    return model
+
+def uni_lstm(input_dim, units, output_dim, gpu=False):
+    model = Sequential();
+    if gpu:
+        model.add(CuDNNLSTM(units, return_sequences=True,
+                           batch_input_shape=(None,None,input_dim)))
+    else:
+        model.add(LSTM(units, return_sequences=True,
+                           batch_input_shape=(None,None,input_dim)))
+    model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
     print(model.summary())
     return model
 
