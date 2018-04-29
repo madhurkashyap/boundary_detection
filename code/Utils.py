@@ -60,3 +60,9 @@ def dump_data(data,filepath):
     pickle.dump(data,f);
     f.close();
 
+## http://tiao.io/posts/adding-__name__-and-__doc__-attributes-to-functoolspartial-objects
+def wpartial(func, *args, **kwargs):
+    from functools import partial, update_wrapper
+    partial_func = partial(func, *args, **kwargs)
+    update_wrapper(partial_func, func)
+    return partial_func
