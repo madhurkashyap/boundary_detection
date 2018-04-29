@@ -28,7 +28,7 @@ def save_figure(prefix,folder=None,size=None,imgfmt='jpg'):
         fn = os.path.join(folder,fn);
     plt.savefig(fn);
     
-def plot_keras_history(history,suptitle='',figsize=(8,4)):
+def plot_keras_history(history,suptitle='',figsize=(8,4),legendloc='bottom center'):
     '''
     Accepts history dictionary object as input. Plots both training
     and validation accuracy and loss curves against epochs
@@ -36,10 +36,8 @@ def plot_keras_history(history,suptitle='',figsize=(8,4)):
     x = list(range(len(history['acc'])));
     f, (ax1, ax2) = plt.subplots(nrows=1,ncols=2,figsize=figsize)
     f.suptitle(suptitle)
-    #ax1.set_title('Loss')
     ax1.set_xlabel('# Epoch')
     ax1.set_ylabel('Loss')
-    #ax2.set_title('Accuracy')
     ax2.set_xlabel('# Epoch')
     ax2.set_ylabel('Accuracy')
 
@@ -55,7 +53,7 @@ def plot_keras_history(history,suptitle='',figsize=(8,4)):
         legpt = (line1,line3); legtxt = ('Train','Test');
     else:
         legpt = [line1]; legtxt = ['Train'];
-    f.legend(legpt,legtxt,'upper center',
+    f.legend(legpt,legtxt,legendloc,
                  fontsize='small',ncol=2,frameon=False)
     for ax in [ax1,ax2]:
         for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
