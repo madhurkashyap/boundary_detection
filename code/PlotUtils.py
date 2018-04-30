@@ -28,7 +28,7 @@ def save_figure(prefix,folder=None,size=None,imgfmt='jpg'):
         fn = os.path.join(folder,fn);
     plt.savefig(fn);
     
-def plot_keras_history(history,suptitle='',figsize=(8,4),legendloc='bottom center'):
+def plot_keras_history(history,suptitle='',figsize=(8,4),legendloc='lower center'):
     '''
     Accepts history dictionary object as input. Plots both training
     and validation accuracy and loss curves against epochs
