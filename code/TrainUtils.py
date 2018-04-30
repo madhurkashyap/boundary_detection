@@ -57,7 +57,7 @@ def train_model(model,trgen,valgen,prefix,
                 optimizer=SGD(lr=0.02, decay=1e-6, momentum=0.9, 
                     nesterov=True, clipnorm=5),
                 steps_per_epoch=100, validation_steps=10,
-                metrics = ['acc'],save_period=0,class_weight=None):
+                metrics = ['acc'],save_period=0,sample_weight_mode=None):
 
     model_path = os.path.join(model_folder,prefix+'.{epoch:02d}-{val_loss:.2f}.hdf5')
     pickle_path = os.path.join(history_folder,prefix+'.pkl');
@@ -67,16 +67,18 @@ def train_model(model,trgen,valgen,prefix,
         callbacks.append(ModelCheckpoint(filepath=model_path,period=save_period,verbose=1));
     if loss=='ctc':
         ctcmodel = add_ctc(model);
-        ctcmodel.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=optimizer, sample_weight_mode="temporal")
+        ctcmodel.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, 
+                optimizer=optimizer, sample_weight_mode=sample_weight_mode);
         hist = ctcmodel.fit_generator(generator=trgen,
                                validation_data=valgen,
-                               epochs=epochs,class_weight=class_weight,
+                               epochs=epochs,
                                steps_per_epoch=steps_per_epoch,
                                validation_steps=validation_steps,                           
                                callbacks=callbacks,
                                verbose=verbose,shuffle=False);
     else:    
-        model.compile(optimizer=optimizer,loss=loss,metrics=metrics,sample_weight_mode="temporal");
+        model.compile(optimizer=optimizer,loss=loss,metrics=metrics,
+                sample_weight_mode=sample_weight_mode);
         hist = model.fit_generator(generator=trgen,
                                validation_data=valgen,
                                epochs=epochs,
