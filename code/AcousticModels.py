@@ -70,7 +70,9 @@ def bidi_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
 
-    if before_dropout>0: model.add(Dropout(before_dropout));
+    if before_dropout>0:
+        model.add(Dropout(before_dropout,
+                          batch_input_shape=(None,None,input_dim)));
     model.add(bidi_layer(rnncell,input_dim,units,rec_dropout));
 
     if batchnorm: model.add(BatchNormalization());
@@ -85,7 +87,9 @@ def uni_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
 
-    if before_dropout>0: model.add(Dropout(before_dropout));
+    if before_dropout>0:
+        model.add(Dropout(before_dropout,
+                          batch_input_shape=(None,None,input_dim)));
     model.add(uni_layer(rnncell,input_dim,units,rec_dropout));
 
     if batchnorm: model.add(BatchNormalization());
