@@ -63,6 +63,9 @@ class AcousticDataGenerator:
         self.n_train = len(self.train_idxs);
         self.n_valid = len(self.valid_idxs);
         self.n_test  = len(self.test_idxs);
+        self.nb_train = math.ceil(self.n_train/self.mbatch_size);
+        self.nb_valid = math.ceil(self.n_valid/self.mbatch_size);
+        self.nb_test = math.ceil(self.n_test/self.mbatch_size);
         
     def init_output_map(self):
         if self.output=="sequence":
