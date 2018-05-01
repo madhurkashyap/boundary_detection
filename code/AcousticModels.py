@@ -67,9 +67,8 @@ def uni_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
                       return_sequences=True,
                       dropout=before_dropout,
                       recurrent_dropout=rec_dropout,
-                     ),
-                     batch_input_shape=(None,None,input_dim),
-                     );
+                      batch_input_shape=(None,None,input_dim),
+                     ));
 
     if batchnorm: model.add(BatchNormalization());
     if after_dropout>0: model.add(Dropout(after_dropout));
