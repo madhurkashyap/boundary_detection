@@ -5,12 +5,37 @@ Created on Sun Apr 22 07:07:16 2018
 @author: Madhur Kashyap 2016EEZ8350
 """
 
+import re
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.layers import (BatchNormalization, Conv1D, Dense, Input, 
     TimeDistributed, Activation, Bidirectional, SimpleRNN, GRU, LSTM,
     CuDNNGRU, CuDNNLSTM, Dropout, Flatten)
 
+def bidi_layer(rnncell,input_dim,units,rec_dropout):
+    iscud = re.match('^.*CuDNN.*$',str(rnncell))
+    if iscud:
+        layer = Bidirectional(rnncell(units,return_sequences=True,),
+                            batch_input_shape=(None,None,input_dim));
+    else:
+        layer = Bidirectional(rnncell(units,return_sequences=True,
+                                      recurrent_dropout=rec_dropout),
+                            batch_input_shape=(None,None,input_dim));
+    return layer
+
+def uni_layer(rnncell,input_dim,units,rec_dropout):
+    iscud = re.match('^.*CuDNN.*$',str(rnncell))
+    if iscud:
+        layer = rnncell(units,return_sequences=True,
+                        batch_input_shape=(None,None,input_dim));
+    else:
+        layer = rnncell(units,return_sequences=True,
+                        recurrent_dropout=rec_dropout,
+                        batch_input_shape=(None,None,input_dim));
+    return layer
+
+
+# TO UPDATE LATER - to use bidi-layer wrapper
 def bidi_l2_ce(rnncell,input_dim,units1,units2,output_dim,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
@@ -44,13 +69,9 @@ def bidi_l2_ce(rnncell,input_dim,units1,units2,output_dim,batchnorm=False,
 def bidi_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
-    model.add(Bidirectional(rnncell(units,
-                                    return_sequences=True,
-                                    dropout=before_dropout,
-                                    recurrent_dropout=rec_dropout,
-                                    ),
-                            batch_input_shape=(None,None,input_dim),
-                            ));
+
+    if before_dropout>0: model.add(Dropout(before_dropout));
+    model.add(bidi_layer(rnncell,input_dim,units,rec_dropout));
 
     if batchnorm: model.add(BatchNormalization());
     if after_dropout>0: model.add(Dropout(after_dropout));
@@ -63,12 +84,9 @@ def bidi_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
 def uni_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
-    model.add(rnncell(units,
-                      return_sequences=True,
-                      dropout=before_dropout,
-                      recurrent_dropout=rec_dropout,
-                      batch_input_shape=(None,None,input_dim),
-                     ));
+
+    if before_dropout>0: model.add(Dropout(before_dropout));
+    model.add(uni_layer(rnncell,input_dim,units,rec_dropout));
 
     if batchnorm: model.add(BatchNormalization());
     if after_dropout>0: model.add(Dropout(after_dropout));
