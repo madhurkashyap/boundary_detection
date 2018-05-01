@@ -21,7 +21,7 @@ class AcousticDataGenerator:
                  mbatch_size=32,audio_feature='mfcc',
                  sgram_step=10,sgram_window=20,sgram_freq=8000,
                  n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roc=False,
-                 mfcc_roa=False):
+                 mfcc_roa=False,model_silence=False):
         assert audio_feature=='mfcc' or audio_feature=='spectrogrm', \
         "Unsupported audio feature request "+audio_feature+\
         ". Supported are {mfcc, spectrogram}"
@@ -43,6 +43,8 @@ class AcousticDataGenerator:
         self.mbatch_size = mbatch_size;
         self.bsymbol = '<wb>';
         self.nbsymbol = '<nb>'; self.ctc_char='_';
+        self.silsymbol = '<sil>';
+        self.model_silence=model_silence;
         self.mfcc_win=mfcc_win;
         self.mfcc_step=mfcc_step;
         self.init_splits();
@@ -71,7 +73,9 @@ class AcousticDataGenerator:
             else:
                 raise ValueError("Mode should be phoneme or grapheme")
             labels.append(' ');
-        elif self.output=="boundary":
+        elif self.output=="boundary" and self.model_silence:
+            labels=[self.nbsymbol,self.bsymbol,self.silsymbol];
+        elif self.output=="boundary" and not self.model_silence:
             labels=[self.nbsymbol,self.bsymbol];
         else:
             raise ValueError("Output type should be {boundary, sequence}")
@@ -188,13 +192,20 @@ class AcousticDataGenerator:
             oplen.append(len(opseq));
             labels.append(opseq);
         max_iplen=max(iplen); max_oplen=max(oplen);
-        pad_label=0 if self.output=="boundary" else \
-                    list(self.outmap[0].values())[-1];
+        if self.output=="boundary" and self.model_silence:
+            # Append silence for padding
+            pad_label = self.outmap[0][self.silsymbol];
+        elif self.output=="boundary" and not self.model_silence:
+            # Append no-boundary for padding
+            pad_label = self.output[0][self.nbsymbol];
+        else:
+            # Put CTC blank character
+            pad_label = list(self.outmap[0].values())[-1];
         X = np.zeros([batch_size,max_iplen,bfeats[-1].shape[1]]);
         Y = np.ones([batch_size,max_oplen])*pad_label;
         for i in range(0,batch_size):
             feats=bfeats[i]; X[i,0:feats.shape[0],:]=feats;
-            Y[i,0:len(labels[i])]=labels[i];
+            Y[i,0:len(labels[i])]=labels[i];  
         if self.ctc_mode:
             outputs = {'ctc': np.zeros(batch_size)}
             inputs = {'the_input': X, 
@@ -205,7 +216,7 @@ class AcousticDataGenerator:
         else:
             outputs=batch_temporal_categorical(Y,self.n_classes);
             inputs=X;
-        return (inputs, outputs)
+        return (inputs, iplen, outputs, oplen)
             
     def train_generator(self):
         while True:
@@ -215,7 +226,9 @@ class AcousticDataGenerator:
             self.ibtrain += self.mbatch_size;
             if self.ibtrain >= self.n_train:
                 self.ibtrain = 0; self.shuffle_split('training')
-            yield mbatch
+            self.trainb_iplen = mbatch[1];
+            self.trainb_oplen = mbatch[3];
+            yield (mbatch[0],mbatch[2])
 
     def valid_generator(self):
         while True:
@@ -224,7 +237,9 @@ class AcousticDataGenerator:
             self.ibvalid += self.mbatch_size;
             if self.ibvalid >= self.n_valid:
                 self.ibvalid = 0; self.shuffle_split('validation')
-            yield mbatch
+            self.valb_iplen = mbatch[1];
+            self.valb_oplen = mbatch[3];
+            yield (mbatch[0],mbatch[2])
         
     def test_generator(self):
         while True:
@@ -233,5 +248,7 @@ class AcousticDataGenerator:
             self.ibtest += self.mbatch_size;
             if self.ibtest >= self.n_test:
                 self.ibtest = 0; self.shuffle_split('testing')
-            yield mbatch
+            self.testb_iplen = mbatch[1];
+            self.testb_oplen = mbatch[3];
+            yield (mbatch[0],mbatch[2])
     
