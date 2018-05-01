@@ -11,83 +11,123 @@ from keras.layers import (BatchNormalization, Conv1D, Dense, Input,
     TimeDistributed, Activation, Bidirectional, SimpleRNN, GRU, LSTM,
     CuDNNGRU, CuDNNLSTM, Dropout, Flatten)
 
-def bidi_lstm2(input_dim,units1,units2,output_dim,gpu=False, batchnorm=False,dropout=0.0):
-    rnncell = CuDNNLSTM if gpu else LSTM;
-
+def bidi_l2_ce(rnncell,input_dim,units1,units2,output_dim,batchnorm=False,
+                 before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
-    model.add(Bidirectional(rnncell(units1, return_sequences=True),
-                            batch_input_shape=(None,None,input_dim)))
-    if batchnorm: model.add(BatchNormalization());
-    if dropout>0: model.add(Dropout(dropout));
+    model.add(Bidirectional(rnncell(units1,
+                                    return_sequences=True,
+                                    dropout=before_dropout,
+                                    recurrent_dropout=rec_dropout,
+                                   ),
+                            batch_input_shape=(None,None,input_dim)
+                           ));
 
-    model.add(Bidirectional(rnncell(units2, return_sequences=True),
-                            batch_input_shape=(None,None,input_dim)))
     if batchnorm: model.add(BatchNormalization());
-    if dropout>0: model.add(Dropout(dropout));
+    if after_dropout>0: model.add(Dropout(after_dropout));
+
+    model.add(Bidirectional(rnncell(units2,
+                                    return_sequences=True,
+                                    dropout=before_dropout,
+                                    recurrent_dropout=rec_dropout,
+                                   ),
+                            batch_input_shape=(None,None,input_dim)
+                           ));
+
+    if batchnorm: model.add(BatchNormalization());
+    if after_dropout>0: model.add(Dropout(after_dropout));
 
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
     print(model.summary())
     return model
 
-def bidi_lstm(input_dim, units, output_dim,gpu=False,batchnorm=False,dropout=0.0):
-    rnncell = CuDNNLSTM if gpu else LSTM;
 
+def bidi_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
+                 before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
-    model.add(Bidirectional(rnncell(units, return_sequences=True),
-                            batch_input_shape=(None,None,input_dim)))
+    model.add(Bidirectional(rnncell(units,
+                                    return_sequences=True,
+                                    dropout=before_dropout,
+                                    recurrent_dropout=rec_dropout,
+                                    ),
+                            batch_input_shape=(None,None,input_dim),
+                            ));
 
     if batchnorm: model.add(BatchNormalization());
-    if dropout>0: model.add(Dropout(dropout));
+    if after_dropout>0: model.add(Dropout(after_dropout));
+
+    model.add(TimeDistributed(Dense(output_dim,activation='softmax')));
+
+    print(model.summary())
+    return model
+
+def uni_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
+                 before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
+    model = Sequential();
+    model.add(rnncell(units,
+                      return_sequences=True,
+                      dropout=before_dropout,
+                      recurrent_dropout=rec_dropout,
+                     ),
+                     batch_input_shape=(None,None,input_dim),
+                     );
+
+    if batchnorm: model.add(BatchNormalization());
+    if after_dropout>0: model.add(Dropout(after_dropout));
 
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
 
     print(model.summary())
     return model
 
-def bidi_gru(input_dim, units, output_dim,gpu=False,batchnorm=False,dropout=0.0):
+def bidi_lstm2(input_dim,units1,units2,output_dim,gpu=False,batchnorm=False,
+                 before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
+    rnncell = CuDNNLSTM if gpu else LSTM;
+
+    return bidi_l2_ce(rnncell,units1,units2,output_dim,
+                 batchnorm=batchnorm,
+                 before_dropout=before_dropout,
+                 after_dropout=after_dropout,
+                 rec_dropout=rec_dropout);
+
+def bidi_lstm(input_dim, units, output_dim,gpu=False,batchnorm=False,
+         before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
+    rnncell = CuDNNLSTM if gpu else LSTM;
+
+    return bidi_l1_ce(rnncell, input_dim, units, output_dim,
+                 batchnorm=batchnorm,
+                 before_dropout=before_dropout,
+                 after_dropout=after_dropout,
+                 rec_dropout=rec_dropout);
+
+def bidi_gru(input_dim, units, output_dim,gpu=False,batchnorm=False,
+            before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     rnncell = CuDNNGRU if gpu else GRU;
 
-    model = Sequential();
-    model.add(Bidirectional(rnncell(units, return_sequences=True),
-                            batch_input_shape=(None,None,input_dim)))
+    return bidi_l1_ce(rnncell, input_dim, units, output_dim,
+                 batchnorm=batchnorm,
+                 before_dropout=before_dropout,
+                 after_dropout=after_dropout,
+                 rec_dropout=rec_dropout);
 
-    if batchnorm: model.add(BatchNormalization());
-    if dropout>0: model.add(Dropout(dropout));
-
-    model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
-
-    print(model.summary())
-    return model
-
-def uni_gru(input_dim, units, output_dim, gpu=False, batchnorm=False,dropout=0.0):
+def uni_gru(input_dim, units, output_dim, gpu=False, batchnorm=False,
+             before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     rnncell = CuDNNGRU if gpu else GRU;
 
-    model = Sequential();
-    model.add(rnncell(units, return_sequences=True,
-                        batch_input_shape=(None,None,input_dim)))
+    return uni_l1_ce(rnncell, input_dim, units, output_dim,
+                 batchnorm=batchnorm,
+                 before_dropout=before_dropout,
+                 after_dropout=after_dropout,
+                 rec_dropout=rec_dropout);
 
-    if batchnorm: model.add(BatchNormalization());
-    if dropout>0: model.add(Dropout(dropout));
-
-    model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
-
-    print(model.summary())
-    return model
-
-def uni_lstm(input_dim, units, output_dim, gpu=False, batchnorm=False,dropout=0.0):
+def uni_lstm(input_dim, units, output_dim, gpu=False, batchnorm=False,
+              before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     rnncell = CuDNNLSTM if gpu else LSTM;
 
-    model = Sequential();
-    model.add(rnncell(units, return_sequences=True,
-                    batch_input_shape=(None,None,input_dim)))
-
-    if batchnorm: model.add(BatchNormalization());
-    if dropout>0: model.add(Dropout(dropout));
-
-    model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
-
-    print(model.summary())
-    return model
+    return uni_l1_ce(rnncell, input_dim, units, output_dim,
+                 batchnorm=batchnorm,
+                 before_dropout=before_dropout,
+                 after_dropout=after_dropout,
+                 rec_dropout=rec_dropout);
 
 def uni_gru_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.0):
     rnncell = CuDNNGRU if gpu else GRU;
