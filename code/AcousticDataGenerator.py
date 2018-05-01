@@ -200,7 +200,7 @@ class AcousticDataGenerator:
             pad_label = self.outmap[0][self.silsymbol];
         elif self.output=="boundary" and not self.model_silence:
             # Append no-boundary for padding
-            pad_label = self.output[0][self.nbsymbol];
+            pad_label = self.outmap[0][self.nbsymbol];
         else:
             # Put CTC blank character
             pad_label = list(self.outmap[0].values())[-1];
