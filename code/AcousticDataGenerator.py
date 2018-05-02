@@ -21,7 +21,8 @@ class AcousticDataGenerator:
                  mbatch_size=32,audio_feature='mfcc',
                  sgram_step=10,sgram_window=20,sgram_freq=8000,
                  n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roc=False,
-                 mfcc_roa=False,model_silence=False):
+                 mfcc_roa=False,model_silence=False,
+                 ce_encoding_mode='naive'):
         assert audio_feature=='mfcc' or audio_feature=='spectrogrm', \
         "Unsupported audio feature request "+audio_feature+\
         ". Supported are {mfcc, spectrogram}"
@@ -47,6 +48,7 @@ class AcousticDataGenerator:
         self.model_silence=model_silence;
         self.mfcc_win=mfcc_win;
         self.mfcc_step=mfcc_step;
+        self.ce_encoding_mode=ce_encoding_mode;
         self.init_splits();
         self.init_output_map();
         
@@ -170,16 +172,30 @@ class AcousticDataGenerator:
         Ignore h# as it denotes silence in phoneme mode
         Only left boundary detection coded -- There are silence gaps
         would warrant right boundary detection as well -- TBD
+
+        nseq: number of input audio frames
+        sr: audio sampling rate - could be specific for a file
+        seqdf: the output sequence dataframe containing time boundaries
+
         """
         assert hasattr(self,'outmap'), "Output map not initialized";
         ns_win = math.ceil(self.mfcc_win*sr);
         ns_step = math.ceil(self.mfcc_step*sr);
+        hns_win = math.ceil(ns_win/2);
         bnds=seqdf[0].values; opseq=[];
-        for i in range(nseq):
-            start = i*ns_step; end = start+ns_win;
-            has_bnd = np.dot(bnds>start,bnds<end);
-            symbol = self.bsymbol if has_bnd else self.nbsymbol
-            opseq.append(self.outmap[0][symbol]);
+        if self.ce_encoding_mode=='naive':
+            for i in range(nseq):
+                start = i*ns_step; end = start+ns_win;
+                has_bnd = np.dot(bnds>start,bnds<end);
+                symbol = self.bsymbol if has_bnd else self.nbsymbol
+                opseq.append(self.outmap[0][symbol]);
+        elif self.ce_encoding_mode=='best':
+            midseq = [i*ns_step+hns_win for i in range(nseq)]
+            opseq = np.ones(nseq)*self.outmap[0][self.nbsymbol]
+            idxs = [np.argmin(np.abs(midseq-bnd)) for bnd in bnds]
+            opseq[idxs] = self.outmap[0][self.bsymbol]
+        else:
+            raise ValueError("Unknown encoding mode %s",self.ce_encoding_mode);
         return opseq;
     
     def gen_split_batch(self,split,idxs,):
