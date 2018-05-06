@@ -32,14 +32,14 @@ def ctc_func(args):
     return K.ctc_batch_cost(y_true, y_pred, input_length, label_length)
 
 def add_ctc(model):
-    Y_pred = Input(name='the_labels', shape=(None,), dtype='float32')
+    the_labels = Input(name='the_labels', shape=(None,), dtype='float32')
     input_lengths = Input(name='input_length', shape=(1,), dtype='int64')
     label_lengths = Input(name='label_length', shape=(1,), dtype='int64')
     output_lengths = Lambda(model.output_length)(input_lengths)
     ctc_loss = Lambda(ctc_func, output_shape=(1,), name='ctc')(
-        [model.output, Y_pred, output_lengths, label_lengths])
+        [model.output, the_labels, output_lengths, label_lengths])
     model = Model(
-        inputs=[model.input, Y_pred, input_lengths, label_lengths], 
+        inputs=[model.input, the_labels, input_lengths, label_lengths], 
         outputs=ctc_loss)
     return model
 
