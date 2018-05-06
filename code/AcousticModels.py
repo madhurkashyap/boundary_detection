@@ -12,6 +12,9 @@ from keras.layers import (BatchNormalization, Conv1D, Dense, Input,
     TimeDistributed, Activation, Bidirectional, SimpleRNN, GRU, LSTM,
     CuDNNGRU, CuDNNLSTM, Dropout, Flatten)
 
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# Basic uni and bi-directional layer definitions
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 def bidi_layer(rnncell,input_dim,units,rec_dropout):
     iscud = re.match('^.*CuDNN.*$',str(rnncell))
     if iscud:
@@ -35,6 +38,10 @@ def uni_layer(rnncell,input_dim,units,rec_dropout):
     return layer
 
 
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# Generic bi-di and uni Network definitions
+# Loss function - Cross entropy
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 # TO UPDATE LATER - to use bidi-layer wrapper
 def bidi_l2_ce(rnncell,input_dim,units1,units2,output_dim,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
@@ -100,6 +107,41 @@ def uni_l1_ce(rnncell, input_dim,units,output_dim,batchnorm=False,
     print(model.summary())
     return model
 
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# Generic bi-di and uni Network definitions
+# Loss function - CTC
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+def bidi_l2_ctc(rnncell,input_dim,units1,units2,output_dim,batchnorm=False,
+                 before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
+
+    input_data = Input(name='the_input', shape=(None, input_dim))
+    last = input_data;
+    if before_dropout>0:
+        last = Dropout(before_dropout)(last);
+        #batch_input_shape=(None,None,input_dim)));###
+                          
+    # First bi-directional layer
+    model.add(bidi_layer(rnncell,input_dim,units1,rec_dropout));
+
+    if batchnorm: model.add(BatchNormalization());
+    if after_dropout>0: model.add(Dropout(after_dropout));
+
+    # Second bi-directional layer
+    model.add(bidi_layer(rnncell,input_dim,units2,rec_dropout));
+
+    if batchnorm: model.add(BatchNormalization());
+    if after_dropout>0: model.add(Dropout(after_dropout));
+
+    model.add(TimeDistributed(Dense(output_dim)))
+    model.add(Activation('softmax',name='softmax'))
+    model.output_length = lambda x: x
+    print(model.summary())
+    return model
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# Finalized models for cross entropy loss function
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
 def bidi_lstm2(input_dim,units1,units2,output_dim,gpu=False,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     rnncell = CuDNNLSTM if gpu else LSTM;
@@ -150,6 +192,45 @@ def uni_lstm(input_dim, units, output_dim, gpu=False, batchnorm=False,
                  after_dropout=after_dropout,
                  rec_dropout=rec_dropout);
 
+
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+# Finalized models for CTC loss function
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+def bidi_ctc_lstm2(input_dim,units1,units2,output_dim,gpu=False,batchnorm=False,
+                 before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
+    rnncell = CuDNNLSTM if gpu else LSTM;
+
+    input_data = Input(name='the_input', shape=(None, input_dim))
+    last = input_data;
+    if before_dropout>0:
+        last = Dropout(before_dropout)(last);
+        #batch_input_shape=(None,None,input_dim)));###
+                          
+    # First bi-directional layer
+    last = Bidirectional(rnncell(units1,return_sequences=True,
+                      recurrent_dropout=rec_dropout))(last);
+
+    if batchnorm: last = BatchNormalization()(last);
+    if after_dropout>0: last = Dropout(after_dropout)(last);
+
+    # Second bi-directional layer
+    last = Bidirectional(rnncell(units2,return_sequences=True,
+                      recurrent_dropout=rec_dropout))(last);
+
+    if batchnorm: last = BatchNormalization()(last);
+    if after_dropout>0: last = Dropout(after_dropout)(last);
+    
+    time_dense = TimeDistributed(Dense(output_dim))(last)
+    y_pred = Activation('softmax', name='softmax')(time_dense)
+    model = Model(inputs=input_data, outputs=y_pred)
+
+    model.output_length = lambda x: x
+    print(model.summary())
+    return model
+    
+ 
+# Needs update here to align with overall coding style
 def uni_gru_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.0):
     rnncell = CuDNNGRU if gpu else GRU;
 
@@ -169,7 +250,7 @@ def uni_gru_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.0
     print(model.summary())
 
     return model
-
+# Needs update here to align with overall coding style
 def uni_lstm_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.0):
     rnncell = CuDNNLSTM if gpu else LSTM;
 
@@ -188,4 +269,5 @@ def uni_lstm_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.
     model.output_length = lambda x: x
     print(model.summary())
     return model
+
 
