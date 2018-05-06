@@ -143,8 +143,12 @@ class AcousticDataGenerator:
     def encode_output(self,seqdf,sr,input_length):
         assert hasattr(self,'outmap'), "Output map not initialized";
         if self.ctc_mode:
-            values = seqdf[2].values if self.mode=='phoneme' else \
-                     list(' '.join(seqdf[2].values));
+            if self.mode=='phoneme':
+                values = [];
+                for el in seqdf[2].values: values+=[el,' '];
+                values.pop();
+            else:
+                values=list(' '.join(seqdf[2].values));
             opseq = self.encode_ctc_output(values)
         else:
             opseq = self.encode_ce_output(sr,input_length,seqdf)
@@ -158,7 +162,6 @@ class AcousticDataGenerator:
         elif self.output=="sequence":
             for x in seq:
                 opseq.append(self.outmap[0][x]);
-                opseq.append(self.outmap[0][' ']);
             opseq.pop();
         else:
             raise ValueError("Output mode should be {boundary or sequence}")
