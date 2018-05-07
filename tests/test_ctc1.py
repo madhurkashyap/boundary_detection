@@ -43,8 +43,8 @@ train_model(model,adg.train_generator(),adg.valid_generator(),
            validation_steps=adg.nb_valid,
            loss='ctc',
            optimizer=Adam(),
-           epochs=1,
-           save_period=0);
+           epochs=5,
+           save_period=5);
 
 X,y = next(adg.valid_generator())
-print(model.predict(X));
+yp = model.predict(X);
