@@ -209,17 +209,38 @@ def bidi_ctc_lstm2(input_dim,units1,units2,output_dim,gpu=False,batchnorm=False,
     print(model.summary())
     return model
     
+def bidi_lstm_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,
+                 before_dropout=0.0,rec_dropout=0.0,after_dropout=0.0):
+    rnncell = CuDNNLSTM if gpu else LSTM;
+
+    input_data = Input(name='the_input', shape=(None, input_dim))
+    if before_dropout>0: last = Dropout(before_dropout)(last);
+    last  = Bidirectional(rnncell(output_dim, return_sequences=True), 
+                                  name='bidi_rnn')(input_data)
+
+    if batchnorm: last = BatchNormalization()(last);
+    if after_dropout>0: last = Dropout(after_dropout)(last);
+
+    time_dense = TimeDistributed(Dense(output_dim))(last)
+
+    y_pred = Activation('softmax', name='softmax')(time_dense)
+
+    model = Model(inputs=input_data, outputs=y_pred)
+    model.output_length = lambda x: x
+    print(model.summary())
+    return model
  
-# Needs update here to align with overall coding style
-def uni_gru_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.0):
+def uni_gru_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,
+                 before_dropout=0.0,rec_dropout=0.0,after_dropout=0.0):
     rnncell = CuDNNGRU if gpu else GRU;
 
     input_data = Input(name='the_input', shape=(None, input_dim))
+    if before_dropout>0: last = Dropout(before_dropout)(last);
     last = rnncell(output_dim, return_sequences=True, 
                     implementation=2, name='rnn')(input_data)
 
     if batchnorm: last = BatchNormalization()(last);
-    if dropout>0: last = Dropout(dropout)(last);
+    if after_dropout>0: last = Dropout(after_dropout)(last);
 
     time_dense = TimeDistributed(Dense(output_dim))(last)
 
@@ -231,16 +252,17 @@ def uni_gru_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.0
 
     return model
 
-# Needs update here to align with overall coding style
-def uni_lstm_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,dropout=0.0):
+def uni_lstm_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,
+                 before_dropout=0.0,rec_dropout=0.0,after_dropout=0.0):
     rnncell = CuDNNLSTM if gpu else LSTM;
 
     input_data = Input(name='the_input', shape=(None, input_dim))
+    if before_dropout>0: last = Dropout(before_dropout)(last);
     last  = rnncell(output_dim, return_sequences=True, 
                        implementation=2, name='rnn')(input_data)
 
     if batchnorm: last = BatchNormalization()(last);
-    if dropout>0: last = Dropout(dropout)(last);
+    if after_dropout>0: last = Dropout(after_dropout)(last);
 
     time_dense = TimeDistributed(Dense(output_dim))(last)
 
