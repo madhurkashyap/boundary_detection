@@ -9,8 +9,12 @@ import os
 import sys
 import logging
 import numpy as np
+import pandas as pd
 from glob import glob
 from time import gmtime, strftime
+
+def is_dataframe(var):
+    return isinstance(var,pd.core.frame.DataFrame);
 
 def create_folder(folder):
     if not os.path.exists(folder): os.makedirs(folder,exist_ok=True)
