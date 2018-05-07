@@ -119,7 +119,7 @@ def bidi_lstm2(input_dim,units1,units2,output_dim,gpu=False,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     rnncell = CuDNNLSTM if gpu else LSTM;
 
-    return bidi_l2_ce(rnncell,units1,units2,output_dim,
+    return bidi_l2_ce(rnncell,input_dim,units1,units2,output_dim,
                  batchnorm=batchnorm,
                  before_dropout=before_dropout,
                  after_dropout=after_dropout,
