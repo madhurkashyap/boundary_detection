@@ -8,7 +8,8 @@ Created on Sun Apr 22 16:58:07 2018
 import math
 import logging
 import numpy as np
-from Utils import gen_bidi_map, is_array_or_list
+import pandas as pd
+from Utils import gen_bidi_map, is_array_or_list, is_dataframe
 from AudioUtils import read_sph, extract_mfcc_features
 from TrainUtils import batch_temporal_categorical
 
@@ -17,8 +18,8 @@ class AcousticDataGenerator:
     _WB_STR = '<wb>';
     _CTC_BLANK = '_';
     
-    def __init__(self,corpus,mode="phoneme",output="boundary",ctc_mode=False,
-                 mbatch_size=32,audio_feature='mfcc',
+    def __init__(self,corpus,mode="phoneme",output="boundary",
+                 ctc_mode=False, mbatch_size=32,audio_feature='mfcc',
                  sgram_step=10,sgram_window=20,sgram_freq=8000,
                  n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roc=False,
                  mfcc_roa=False,model_silence=False,
@@ -42,7 +43,8 @@ class AcousticDataGenerator:
         self.output = output;
         self.ctc_mode=ctc_mode;
         self.mbatch_size = mbatch_size;
-        self.bsymbol = '<wb>';
+        self.wbsymbol = '<wb>';
+        self.pbsymbol = '<pb>';
         self.nbsymbol = '<nb>'; self.ctc_char='_';
         self.silsymbol = '<sil>';
         self.model_silence=model_silence;
@@ -78,10 +80,15 @@ class AcousticDataGenerator:
             else:
                 raise ValueError("Mode should be phoneme or grapheme")
             labels.append(' ');
-        elif self.output=="boundary" and self.model_silence:
-            labels=[self.nbsymbol,self.bsymbol,self.silsymbol];
-        elif self.output=="boundary" and not self.model_silence:
-            labels=[self.nbsymbol,self.bsymbol];
+        elif self.output=="boundary":
+            labels = [self.nbsymbol];
+            if self.mode=="phoneme":
+                labels+=[self.pbsymbol];
+            elif self.mode=="word_phoneme":
+                labels+=[self.pbsymbol,self.wbsymbol]
+            elif self.mode=="word":
+                labels+=[self.wbsymbol];
+            if self.model_silence: labels+=[self.silsymbol];
         else:
             raise ValueError("Output type should be {boundary, sequence}")
         if self.ctc_mode:
@@ -94,7 +101,7 @@ class AcousticDataGenerator:
         data = self.get_split_data('training');
         n = min(n_samples,len(data));
         np.random.shuffle(data);
-        features = [self.get_audio_features(sph)[2] for sph,seq in data[0:n]]
+        features = [self.get_audio_features(sph)[2] for sph,pseq,wseq in data[0:n]]
         stacked = np.vstack(features);
         self.feature_mean = np.mean(stacked,axis=0);
         self.feature_std = np.std(stacked,axis=0);
@@ -130,7 +137,7 @@ class AcousticDataGenerator:
     def get_split_data(self,split,idxs=[]):
         if not is_array_or_list(idxs) or len(idxs)==0:
             idxs = self.get_split_idxs(split);
-        return self.corpus.get_corpus_data(idxs,self.mode);
+        return self.corpus.get_corpus_data(idxs);
         
     def get_audio_features(self,file):
         sr,y = read_sph(file);
@@ -140,25 +147,35 @@ class AcousticDataGenerator:
                                              roa=self.mfcc_roa);
         return sr,len(y),features;
     
-    def encode_output(self,seqdf,sr,input_length):
+    def encode_output(self,pseqdf,wseqdf,sr,input_length):
         assert hasattr(self,'outmap'), "Output map not initialized";
         if self.ctc_mode:
             if self.mode=='phoneme':
                 values = [];
-                for el in seqdf[2].values: values+=[el,' '];
+                for el in pseqdf[2].values: values+=[el,' '];
                 values.pop();
+            elif self.mode=='grapheme':
+                values=list(' '.join(wseqdf[2].values));
             else:
-                values=list(' '.join(seqdf[2].values));
+                raise ValueError('Unknown mode for encoding output '+self.mode)
             opseq = self.encode_ctc_output(values)
         else:
-            opseq = self.encode_ce_output(sr,input_length,seqdf)
+            if self.mode=='phoneme':
+                opseq = self.encode_ce_output(sr,input_length,pseqdf);
+            elif self.mode=='word_phoneme':
+                opseq = self.encode_ce_output(sr,input_length,pseqdf,wseqdf);
+            elif self.mode=='word':
+                opseq = self.encode_ce_output(sr,input_length,None,wseqdf);
+            else:
+                raise ValueError('Unsupported ce encoding '+self.mode);
         return opseq;
         
     def encode_ctc_output(self,seq):
         assert hasattr(self,'outmap'), "Output map not initialized";
         opseq = [];
         if self.output=="boundary":
-            opseq = [self.outmap[0][self.bsymbol] for i in range(0,len(seq)+1)]
+            raise ValueError('CTC Boundary mound is not supported');
+            #opseq = [self.outmap[0][self.pbsymbol] for i in range(0,len(seq)+1)]
         elif self.output=="sequence":
             for x in seq:
                 opseq.append(self.outmap[0][x]);
@@ -167,7 +184,7 @@ class AcousticDataGenerator:
             raise ValueError("Output mode should be {boundary or sequence}")
         return opseq
                
-    def encode_ce_output(self,sr,nseq,seqdf):
+    def encode_ce_output(self,sr,nseq,pseqdf=None,wseqdf=None):
         """
         Nw = (L-W)/S+1
         Start(0) = 0, Start(1) = Start(0)+S=S, Start(2)=Start(1)+S=S+S=2S
@@ -180,27 +197,31 @@ class AcousticDataGenerator:
 
         nseq: number of input audio frames
         sr: audio sampling rate - could be specific for a file
-        seqdf: the output sequence dataframe containing time boundaries
-
+        pseqdf: output sequence dataframe having phone time boundaries
+        wseqdf: output sequence dataframe having word time boundaries
         """
         assert hasattr(self,'outmap'), "Output map not initialized";
+        assert is_dataframe(pseqdf) or is_dataframe(wseqdf),\
+            "Either word of phoneme data needed"
+        assert self.ce_encoding_mode=='naive' or self.ce_encoding_mode=='best',\
+        "Unsupported encoding mode "+self.ce_encoding_mode
         ns_win = math.ceil(self.mfcc_win*sr);
         ns_step = math.ceil(self.mfcc_step*sr);
         hns_win = math.ceil(ns_win/2);
-        bnds=seqdf[0].values; opseq=[];
-        if self.ce_encoding_mode=='naive':
-            for i in range(nseq):
-                start = i*ns_step; end = start+ns_win;
-                has_bnd = np.dot(bnds>start,bnds<end);
-                symbol = self.bsymbol if has_bnd else self.nbsymbol
-                opseq.append(self.outmap[0][symbol]);
-        elif self.ce_encoding_mode=='best':
-            midseq = [i*ns_step+hns_win for i in range(nseq)]
-            opseq = np.ones(nseq)*self.outmap[0][self.nbsymbol]
-            idxs = [np.argmin(np.abs(midseq-bnd)) for bnd in bnds]
-            opseq[idxs] = self.outmap[0][self.bsymbol]
-        else:
-            raise ValueError("Unknown encoding mode %s",self.ce_encoding_mode);
+        opseq = np.ones(nseq)*self.outmap[0][self.nbsymbol]
+        templist = [[self.pbsymbol,pseqdf],[self.wbsymbol,wseqdf]];
+        for symbol,seqdf in templist:
+            if not is_dataframe(seqdf): continue;
+            bnds=seqdf[0].values;
+            if self.ce_encoding_mode=='naive':
+                for i in range(nseq):
+                    start = i*ns_step; end = start+ns_win;
+                    has_bnd = np.dot(bnds>start,bnds<end);
+                    if has_bnd: opseq[i]=self.outmap[0][symbol]
+            elif self.ce_encoding_mode=='best':
+                midseq = [i*ns_step+hns_win for i in range(nseq)]
+                idxs = [np.argmin(np.abs(midseq-bnd)) for bnd in bnds]
+                opseq[idxs] = self.outmap[0][symbol]
         return opseq;
     
     def gen_split_batch(self,split,idxs,):
@@ -208,11 +229,11 @@ class AcousticDataGenerator:
         #print("Debug: Data len = %d" % len(data));
         bfeats=[]; iplen=[]; oplen=[]; labels=[];
         batch_size = len(idxs);
-        for a,seqdf in data:
+        for a,pseqdf,wseqdf in data:
             sr,n_as,feats=self.get_audio_features(a);
             bfeats.append(self.fit(feats));
             iplen.append(len(bfeats[-1]));
-            opseq = self.encode_output(seqdf,sr,iplen[-1]);
+            opseq = self.encode_output(pseqdf,wseqdf,sr,iplen[-1]);
             oplen.append(len(opseq));
             labels.append(opseq);
         max_iplen=max(iplen); max_oplen=max(oplen);
