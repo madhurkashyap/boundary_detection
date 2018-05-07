@@ -329,14 +329,13 @@ class Timit:
         self.check_corpus_init();
         return self._corpusdf.loc[idxs,keys]
     
-    def get_corpus_data(self,idxs,mode="phoneme"):
-        assert mode=='phoneme' or mode=='grapheme',\
-        "Unknown mode. Supported are {phoneme grapheme}"
-        keys = ['wav','phn'] if mode=="phoneme" else ['wav','wrd']
+    def get_corpus_data(self,idxs):
+        keys = ['wav','phn','wrd'];
         df = self.get_corpus_columns(idxs,keys).values;
         flist=[];
-        for wav,seqf in df:
-            df = pd.read_csv(seqf,header=None,delim_whitespace=True);
+        for wav,pseqf,wseqf in df:
+            pdf = pd.read_csv(pseqf,header=None,delim_whitespace=True);
+            wdf = pd.read_csv(wseqf,header=None,delim_whitespace=True)
             #seq = np.ndarray.flatten(df.values);
-            flist.append([wav,df]);
+            flist.append([wav,pdf,wdf]);
         return flist;
