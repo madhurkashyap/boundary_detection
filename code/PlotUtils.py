@@ -6,6 +6,7 @@ Created on Mon Apr 23 07:15:09 2018
 """
 
 import os
+import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -28,45 +29,47 @@ def save_figure(prefix,folder=None,size=None,imgfmt='jpg'):
         fn = os.path.join(folder,fn);
     plt.savefig(fn);
     
-def plot_keras_history(history,suptitle='',figsize=(8,4),legendloc='lower center'):
+def plot_keras_history(history,suptitle='',figsize=(8,4),
+                       legendloc='lower center'):
     '''
     Accepts history dictionary object as input. Plots both training
     and validation accuracy and loss curves against epochs
     '''
 
+    if not 'acc' in history and not 'loss' in history:
+        raise ValueError("Neither loss nor accuracy data");
+
     x = list(range(len(history['loss'])));
-    # Check if has accuracy as well
-    if 'acc' in history:
-        f, (ax1, ax2) = plt.subplots(nrows=1,ncols=2,figsize=figsize)
-        f.suptitle(suptitle)
-        ax2.set_xlabel('# Epoch')
-        ax2.set_ylabel('Accuracy')
-        y1b=history['acc'];
-        line2, = ax2.plot(x,y1b,'b',label="Train")
-        line4, = ax2.plot(x,y2b,'r',label="Test")
-        if 'val_acc' in history.keys():
-            y2b=history['val_acc'];
-        else:
-            legpt = [line1]; legtxt = ['Train'];
-        axes = [ax1,ax2]
-    else:
-        f, ax1 = plt.subplots(nrows=1,ncols=1,figsize=figsize)
-        axes = [ax1];
 
-    ax1.set_xlabel('# Epoch')
-    ax1.set_ylabel('Loss')
-    y1a=history['loss'];
-    line1, = ax1.plot(x,y1a,'b',label="Train")
+    data = {}; titles = []; figdata = [];
+    if 'loss' in history: figdata.append(['loss','Train','b']);
+    if 'val_loss' in history: figdata.append(['val_loss','Test','r']);
+    if len(figdata)>0: data['Loss']=figdata;
+    
+    figdata = [];
+    if 'acc' in history: figdata.append(['acc','Train','b'])
+    if 'val_acc' in history: figdata.append(['val_acc','Test','r']);
+    if len(figdata)>0: data['Accuracy']=figdata;
 
-    if 'val_loss' in history:
-        y2a=history['val_loss'];
-        line3, = ax1.plot(x,y2a,'r',label="Test")
-        legpt = (line1,line3); legtxt = ('Train','Test');
-        f.legend(legpt,legtxt,legendloc,
-                 fontsize='small',ncol=2,frameon=False)
-    for ax in axes:
+    if len(data)==0: return;
+    titles = list(data.keys())
+    f, axes = plt.subplots(nrows=1,ncols=len(data),figsize=figsize);
+    f.suptitle(suptitle);
+    if not isinstance(axes,np.ndarray): axes = [axes];
+    
+    for i in range(len(data)):
+        ax = axes[i]; legpts = []; legtxts = [];
+        ax.set_xlabel('# Epoch');
+        ax.set_ylabel(titles[i]);
         for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
-             ax.get_xticklabels() + ax.get_yticklabels()):
+                     ax.get_xticklabels() + ax.get_yticklabels()):
             item.set_fontsize(9)
+        for key,legtxt,color in data[titles[i]]:
+            line, = ax.plot(x,history[key],color,label=legtxt);
+            legpts.append(line); legtxts.append(legtxt);
+    
+    f.legend(legpts,legtxts,legendloc,
+             fontsize='small',ncol=2,frameon=False)
+
     plt.tight_layout(h_pad=0.9)
     plt.show()
