@@ -8,6 +8,7 @@ Created on Fri Apr 27 08:14:12 2018
 import os
 import numpy as np
 import pandas as pd
+from copy import copy
 import keras.backend as K
 from Utils import create_folder, dump_data
 from keras.utils import to_categorical
@@ -97,6 +98,38 @@ def train_model(model,trgen,valgen,prefix,
     dump_data(hist.history,pickle_path);
     return hist
 
+def precision(yt,yp,idx,n_classes,thresh=0):
+    # Not implemented how to use this threshold
+    ypcls = K.reshape(K.argmax(yp,axis=2),[-1]);
+    ytcls = K.reshape(K.argmax(yt,axis=2),[-1]);
+    labels = list(range(n_classes));
+    cnf = K.tf.confusion_matrix(ytcls,ypcls)
+    rest = copy(labels); rest.remove(idx);
+    tp = cnf[idx,idx]; fp = 0;
+    for r in rest: fp += cnf[r,idx];
+    return tp/(tp+fp);
+
+def recall(yt,yp,idx,n_classes,thresh=0):
+    # Not implemented how to use this threshold
+    ypcls = K.reshape(K.argmax(yp,axis=2),[-1]);
+    ytcls = K.reshape(K.argmax(yt,axis=2),[-1]);
+    labels = list(range(n_classes));
+    cnf = K.tf.confusion_matrix(ytcls,ypcls);
+    rest = copy(labels); rest.remove(idx);
+    tp = cnf[idx,idx]; fn = 0;
+    for r in rest: fn += cnf[idx,r];
+    return tp/(tp+fn);
+
+def clsacc(yt,yp,idx,n_classes,thresh=0):
+    # Not implemented how to use this threshold
+    ypcls = K.reshape(K.argmax(yp,axis=2),[-1]);
+    ytcls = K.reshape(K.argmax(yt,axis=2),[-1]);
+    labels = list(range(n_classes));
+    cnf = K.tf.confusion_matrix(ytcls,ypcls);
+    rest = copy(labels); rest.remove(idx);
+    tp = cnf[idx,idx]; total = K.tf.reduce_sum(cnf[idx,:])
+    return tp/(total);
+    
 def get_model_class_stats(model,generator,steps,names=[]):
     X,y = next(generator)
     n_classes=y.shape[-1];
@@ -113,7 +146,6 @@ def get_model_class_stats(model,generator,steps,names=[]):
         for i in range(len(ypcls)):
             cnf += confusion_matrix(ytcls[i], ypcls[i], labels=labels);
 
-    from copy import copy
     rows = [];
     for i in range(n_classes):
         rest = copy(labels); rest.remove(i);
