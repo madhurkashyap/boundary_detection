@@ -10,7 +10,7 @@ import logging
 import numpy as np
 import pandas as pd
 from Utils import gen_bidi_map, is_array_or_list, is_dataframe
-from AudioUtils import read_sph, extract_mfcc_features
+from AudioUtils import read_sph, extract_features
 from TrainUtils import batch_temporal_categorical
 
 class AcousticDataGenerator:
@@ -22,7 +22,7 @@ class AcousticDataGenerator:
                  ctc_mode=False, mbatch_size=32,audio_feature='mfcc',
                  sgram_step=10,sgram_window=20,sgram_freq=8000,
                  n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roc=False,
-                 mfcc_roa=False,model_silence=False,
+                 mfcc_roa=False,mfcc_logfb=False,model_silence=False,
                  ce_encoding_mode='naive'):
         assert audio_feature=='mfcc' or audio_feature=='spectrogrm', \
         "Unsupported audio feature request "+audio_feature+\
@@ -39,6 +39,7 @@ class AcousticDataGenerator:
         self.n_mfcc = n_mfcc;
         self.mfcc_roc = mfcc_roc;
         self.mfcc_roa = mfcc_roa;
+        self.mfcc_logfb = mfcc_logfb;
         self.mode = mode;
         self.output = output;
         self.ctc_mode=ctc_mode;
@@ -142,9 +143,12 @@ class AcousticDataGenerator:
     def get_audio_features(self,file):
         sr,y = read_sph(file);
         if self.audio_feature=='mfcc':
-            features = extract_mfcc_features(y,sr,n_mfcc=self.n_mfcc,
+            features = extract_features(y,sr,n_mfcc=self.n_mfcc,
                                              roc=self.mfcc_roc,
-                                             roa=self.mfcc_roa);
+                                             roa=self.mfcc_roa,
+                                             logfb=self.mfcc_logfb,
+                                             wlen=self.mfcc_win,
+                                             wstep=self.mfcc_step);
         return sr,len(y),features;
     
     def encode_output(self,pseqdf,wseqdf,sr,input_length):
