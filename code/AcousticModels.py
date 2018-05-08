@@ -46,34 +46,25 @@ def uni_layer(rnncell,input_dim,units,rec_dropout):
 # Generic bi-di and uni Network definitions
 # Loss function - Cross entropy
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-# TO UPDATE LATER - to use bidi-layer wrapper
 def bidi_l2_ce(rnncell,input_dim,units1,units2,output_dim,batchnorm=False,
                  before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     model = Sequential();
-    model.add(Bidirectional(rnncell(units1,
-                                    return_sequences=True,
-                                    dropout=before_dropout,
-                                    recurrent_dropout=rec_dropout,
-                                   ),
-                            batch_input_shape=(None,None,input_dim)
-                           ));
+    if before_dropout>0:
+        model.add(Dropout(before_dropout,
+                          batch_input_shape=(None,None,input_dim)));
+    model.add(bidi_layer(rnncell,input_dim,units1,rec_dropout));
 
     if batchnorm: model.add(BatchNormalization());
     if after_dropout>0: model.add(Dropout(after_dropout));
-
-    model.add(Bidirectional(rnncell(units2,
-                                    return_sequences=True,
-                                    dropout=before_dropout,
-                                    recurrent_dropout=rec_dropout,
-                                   ),
-                            batch_input_shape=(None,None,input_dim)
-                           ));
+    
+    model.add(bidi_layer(rnncell,input_dim,units2,rec_dropout));
 
     if batchnorm: model.add(BatchNormalization());
     if after_dropout>0: model.add(Dropout(after_dropout));
 
     model.add(TimeDistributed(Dense(output_dim,activation='softmax')))
     print(model.summary())
+
     return model
 
 
