@@ -6,6 +6,7 @@ Created on Mon Apr 23 07:15:09 2018
 """
 
 import os
+import math
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -29,47 +30,38 @@ def save_figure(prefix,folder=None,size=None,imgfmt='jpg'):
         fn = os.path.join(folder,fn);
     plt.savefig(fn);
     
-def plot_keras_history(history,suptitle='',figsize=(8,4),
+def plot_keras_history(history,keydict,suptitle='',boxsize=4,
                        legendloc='lower center'):
     '''
     Accepts history dictionary object as input. Plots both training
     and validation accuracy and loss curves against epochs
     '''
 
-    if not 'acc' in history and not 'loss' in history:
-        raise ValueError("Neither loss nor accuracy data");
+    for keytup in keydict.values():
+        for key in keytup:
+            if not key in history: raise KeyError(key);
 
-    x = list(range(len(history['loss'])));
-
-    data = {}; titles = []; figdata = [];
-    if 'loss' in history: figdata.append(['loss','Train','b']);
-    if 'val_loss' in history: figdata.append(['val_loss','Test','r']);
-    if len(figdata)>0: data['Loss']=figdata;
+    x = list(range(len(history[key])));
     
-    figdata = [];
-    if 'acc' in history: figdata.append(['acc','Train','b'])
-    if 'val_acc' in history: figdata.append(['val_acc','Test','r']);
-    if len(figdata)>0: data['Accuracy']=figdata;
-
-    if len(data)==0: return;
-    titles = list(data.keys())
-    f, axes = plt.subplots(nrows=1,ncols=len(data),figsize=figsize);
+    nfigs = len(keydict);
+    ncols= 2 if nfigs>=2 else 1;
+    nrows = math.ceil(nfigs/2);
+    figsize = (nrows*boxsize,ncols*boxsize);
+    f, axes = plt.subplots(nrows=nrows,ncols=ncols,figsize=figsize);
     f.suptitle(suptitle);
     if not isinstance(axes,np.ndarray): axes = [axes];
+    axes = np.ndarray.flatten(axes);
     
-    for i in range(len(data)):
-        ax = axes[i]; legpts = []; legtxts = [];
-        ax.set_xlabel('# Epoch');
+    titles = list(keydict.keys());
+    for i in range(nfigs):
+        ax = axes[i]; ax.set_xlabel('# Epoch');
         ax.set_ylabel(titles[i]);
         for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
                      ax.get_xticklabels() + ax.get_yticklabels()):
             item.set_fontsize(9)
-        for key,legtxt,color in data[titles[i]]:
-            line, = ax.plot(x,history[key],color,label=legtxt);
-            legpts.append(line); legtxts.append(legtxt);
-    
-    f.legend(legpts,legtxts,legendloc,
-             fontsize='small',ncol=2,frameon=False)
+        for key in keydict[titles[i]]:
+            line, = ax.plot(x,history[key],label=key);
+        ax.legend();
 
     plt.tight_layout(h_pad=0.9)
     plt.show()
