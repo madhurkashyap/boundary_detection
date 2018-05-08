@@ -49,8 +49,10 @@ def plot_keras_history(history,keydict,suptitle='',boxsize=4,
     figsize = (nrows*boxsize,ncols*boxsize);
     f, axes = plt.subplots(nrows=nrows,ncols=ncols,figsize=figsize);
     f.suptitle(suptitle);
-    if not isinstance(axes,np.ndarray): axes = [axes];
-    axes = np.ndarray.flatten(axes);
+    if not isinstance(axes,np.ndarray):
+        axes = [axes];
+    else:
+        axes = np.ndarray.flatten(axes);
     
     titles = list(keydict.keys());
     for i in range(nfigs):
