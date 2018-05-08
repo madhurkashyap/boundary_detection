@@ -116,6 +116,16 @@ def bidi_lstm2(input_dim,units1,units2,output_dim,gpu=False,batchnorm=False,
                  after_dropout=after_dropout,
                  rec_dropout=rec_dropout);
 
+def bidi_gru2(input_dim,units1,units2,output_dim,gpu=False,batchnorm=False,
+                 before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
+    rnncell = CuDNNGRU if gpu else GRU;
+
+    return bidi_l2_ce(rnncell,input_dim,units1,units2,output_dim,
+                 batchnorm=batchnorm,
+                 before_dropout=before_dropout,
+                 after_dropout=after_dropout,
+                 rec_dropout=rec_dropout);
+
 def bidi_lstm(input_dim, units, output_dim,gpu=False,batchnorm=False,
          before_dropout=0.0,after_dropout=0.0,rec_dropout=0.0):
     rnncell = CuDNNLSTM if gpu else LSTM;
@@ -205,9 +215,10 @@ def bidi_lstm_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,
     rnncell = CuDNNLSTM if gpu else LSTM;
 
     input_data = Input(name='the_input', shape=(None, input_dim))
+    last = input_data;
     if before_dropout>0: last = Dropout(before_dropout)(last);
     last  = Bidirectional(rnncell(output_dim, return_sequences=True), 
-                                  name='bidi_rnn')(input_data)
+                                  name='bidi_rnn')(last)
 
     if batchnorm: last = BatchNormalization()(last);
     if after_dropout>0: last = Dropout(after_dropout)(last);
@@ -226,9 +237,10 @@ def uni_gru_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,
     rnncell = CuDNNGRU if gpu else GRU;
 
     input_data = Input(name='the_input', shape=(None, input_dim))
+    last = input_data;
     if before_dropout>0: last = Dropout(before_dropout)(last);
     last = rnncell(output_dim, return_sequences=True, 
-                    implementation=2, name='rnn')(input_data)
+                    implementation=2, name='rnn')(last)
 
     if batchnorm: last = BatchNormalization()(last);
     if after_dropout>0: last = Dropout(after_dropout)(last);
@@ -248,9 +260,10 @@ def uni_lstm_ctc(input_dim,units,output_dim,gpu=False,batchnorm=False,
     rnncell = CuDNNLSTM if gpu else LSTM;
 
     input_data = Input(name='the_input', shape=(None, input_dim))
+    last = input_data;
     if before_dropout>0: last = Dropout(before_dropout)(last);
     last  = rnncell(output_dim, return_sequences=True, 
-                       implementation=2, name='rnn')(input_data)
+                       implementation=2, name='rnn')(last)
 
     if batchnorm: last = BatchNormalization()(last);
     if after_dropout>0: last = Dropout(after_dropout)(last);
