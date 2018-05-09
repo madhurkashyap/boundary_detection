@@ -23,7 +23,7 @@ class AcousticDataGenerator:
                  sgram_step=10,sgram_window=20,sgram_freq=8000,
                  n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roc=False,
                  mfcc_roa=False,mfcc_logfb=False,model_silence=False,
-                 ce_encoding_mode='naive'):
+                 ce_encoding_mode='naive',feat_method='librosa'):
         assert audio_feature=='mfcc' or audio_feature=='spectrogrm', \
         "Unsupported audio feature request "+audio_feature+\
         ". Supported are {mfcc, spectrogram}"
@@ -52,6 +52,7 @@ class AcousticDataGenerator:
         self.mfcc_win=mfcc_win;
         self.mfcc_step=mfcc_step;
         self.ce_encoding_mode=ce_encoding_mode;
+        self.feat_method = feat_method;
         self.init_splits();
         self.init_output_map();
         
@@ -148,7 +149,8 @@ class AcousticDataGenerator:
                                              roa=self.mfcc_roa,
                                              logfb=self.mfcc_logfb,
                                              wlen=self.mfcc_win,
-                                             wstep=self.mfcc_step);
+                                             wstep=self.mfcc_step,
+                                             method=self.feat_method);
         return sr,len(y),features;
     
     def encode_output(self,pseqdf,wseqdf,sr,input_length):
