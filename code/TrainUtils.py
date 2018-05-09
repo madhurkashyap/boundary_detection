@@ -161,3 +161,41 @@ def get_model_class_stats(model,generator,steps,names=[]):
     print('');
     print(df);
     return cnf;
+
+def ctc_report_metrics(model,generator,steps,symbolmap,wlen,wstep,
+                          ctc_blank='_',iplkey='input_length',
+                          labkey='the_labels',bndkey='boundaries',
+                          mode='conservative'):
+    truep = 0; falsen = 0; falsep = 0; wcount = 0;
+    tprate = 0; fnrate = 0; fprate = 0;
+    for i in range(steps):
+        print("\rProcessing batch %03d / %03d" % (i+1,steps),end='');
+        X,yt = next(generator); count = X[iplkey].shape[0];
+        yp = model.predict(X);
+        for j in range(count):
+            iplen = X[iplkey][j];
+            ypsc = np.argmax(yp[j,0:iplen],axis=1);
+            ypsl = [symbolmap[x] for x in ypsc];
+            ypbnd = ctc_decode_boundaries(ypsl,wlen,wstep);
+            ytbnd = X[bndkey][j].values[:,[0,1]]
+            wcount += ytbnd.shape[0];
+            for st,en in ytbnd:
+                m = (ypbnd>=st)*1 * (ypbnd<=en)*1;
+                nz = np.count_nonzero(m);
+                if nz==0: falsen+=1;
+                if nz==1: truep+=1;
+                if nz>1: falsep+=1;
+    tprate = truep/wcount; fnrate = falsen/wcount; fprate=falsep/wcount;
+    print("\nTotal word windows: %d" % wcount);
+    print("Correct detections: %d (%f)" % (truep,tprate))
+    print("False detections: %d (%f)" % (falsep,fprate))
+    print("Missed detections: %d (%f)" % (falsen,fnrate))
+
+def ctc_decode_boundaries(yp,wlen,wstep,mode='balanced',
+                          ctc_blank='_',include_end=False):
+    ypa = np.array(yp);
+    idx = np.reshape(np.argwhere(ypa!='_'),(-1))[0];
+    bnds = [[idx]] if idx==0 else [[idx-1]]
+    gi = np.reshape(np.argwhere(ypa==' '),(-1,))
+    if len(gi)>0: bnds += np.split(gi, np.where(np.diff(gi) != 1)[0]+1)
+    return np.array([((x[-1]+x[0])*wstep+wlen)/2 for x in bnds])
