@@ -232,7 +232,7 @@ class AcousticDataGenerator:
         data=self.get_split_data(split,idxs);
         #print("Debug: Data len = %d" % len(data));
         bfeats=[]; iplen=[]; oplen=[]; labels=[];
-        batch_size = len(idxs);
+        batch_size = len(idxs); wbndfs = []; pbndfs = [];
         for a,pseqdf,wseqdf in data:
             sr,n_as,feats=self.get_audio_features(a);
             bfeats.append(self.fit(feats));
@@ -240,6 +240,8 @@ class AcousticDataGenerator:
             opseq = self.encode_output(pseqdf,wseqdf,sr,iplen[-1]);
             oplen.append(len(opseq));
             labels.append(opseq);
+            wbndfs.append(wseqdf);
+            pbndfs.append(pseqdf);
         max_iplen=max(iplen); max_oplen=max(oplen);
         if self.output=="boundary" and self.model_silence:
             # Append silence for padding
@@ -262,6 +264,8 @@ class AcousticDataGenerator:
                       'input_length': np.array(iplen),
                       'label_length': np.array(oplen)
                      }
+            inputs['boundaries'] = wbndfs if self.mode=='word' \
+                                   else pbndfs
         else:
             outputs=batch_temporal_categorical(Y,self.n_classes);
             inputs=X;
