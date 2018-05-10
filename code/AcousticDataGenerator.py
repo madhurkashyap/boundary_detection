@@ -23,7 +23,8 @@ class AcousticDataGenerator:
                  sgram_step=10,sgram_window=20,sgram_freq=8000,
                  n_mfcc=13,mfcc_win=0.025,mfcc_step=0.010,mfcc_roc=False,
                  mfcc_roa=False,mfcc_logfb=False,model_silence=False,
-                 ce_encoding_mode='naive',feat_method='librosa'):
+                 ce_encoding_mode='naive',feat_method='librosa',
+                 sort_first=False):
         assert audio_feature=='mfcc' or audio_feature=='spectrogrm', \
         "Unsupported audio feature request "+audio_feature+\
         ". Supported are {mfcc, spectrogram}"
@@ -51,6 +52,7 @@ class AcousticDataGenerator:
         self.model_silence=model_silence;
         self.mfcc_win=mfcc_win;
         self.mfcc_step=mfcc_step;
+        self.sort_first = sort_first;
         self.ce_encoding_mode=ce_encoding_mode;
         self.feat_method = feat_method;
         self.init_splits();
@@ -60,9 +62,14 @@ class AcousticDataGenerator:
         self.train_idxs = self.corpus.get_split_ids('training');
         self.valid_idxs = self.corpus.get_split_ids('validation');
         self.test_idxs = self.corpus.get_split_ids('testing');
-        self.shuffle_split('training')
-        self.shuffle_split('validation')
-        self.shuffle_split('testing')
+        if self.sort_first:
+            self.sort_split('training')
+            self.sort_split('validation')
+            self.sort_split('testing')
+        else:
+            self.shuffle_split('training')
+            self.shuffle_split('validation')
+            self.shuffle_split('testing')
         self.ibtrain = 0;
         self.ibvalid = 0;
         self.ibtest = 0;
@@ -135,6 +142,17 @@ class AcousticDataGenerator:
             np.random.shuffle(self.test_idxs);
         else:
             raise ValueError("Split should be {training, validation, testing}")
+
+    def sort_split(self,split):
+        if split=='training':
+            self.train_idxs = self.corpus.sort_indexes(self.train_idxs);
+        elif split=='validation':
+            self.valid_idxs = self.corpus.sort_indexes(self.valid_idxs);
+        elif split=='testing':
+            self.test_idxs = self.corpus.sort_indexes(self.test_idxs);
+        else:
+            raise ValueError("Split should be {training, validation, testing}")
+
             
     def get_split_data(self,split,idxs=[]):
         if not is_array_or_list(idxs) or len(idxs)==0:
