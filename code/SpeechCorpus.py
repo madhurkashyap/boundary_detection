@@ -163,10 +163,11 @@ class Timit:
                         spkr_use = self.get_speaker_use(spkr);
                         train = True if spkr_use=='TRN' else False
                         test = not train; valid = False;
-                        row+=[train,valid,test];
-                    rows.append(row);
+                        duration = self._get_duration(phnp);
+                        row+=[duration,train,valid,test];
+                        rows.append(row);
         assert len(rows)>0, "No valid data found in dataset "+self._root;
-        cols = ['dr','spkrid','sex','senid','wav','phn','wrd',
+        cols = ['dr','spkrid','sex','senid','wav','phn','wrd','duration',
                 'training','validation','testing'];
         df = pd.DataFrame(rows,columns=cols);
         count = np.count_nonzero(df[['training','testing']].values)
@@ -176,9 +177,18 @@ class Timit:
     
     def has_overlap(self,path):
         assert os.path.exists(path), "Cannot open file " + path
-        df = pd.read_csv(path,header=None,delim_whitespace=True);
+        try:
+            df = pd.read_csv(path,header=None,delim_whitespace=True);
+        except:
+            print(logging.warn("Unable to parse file %s",path));
+            return True
         a = np.ndarray.flatten(df[[0,1]].values);
         return not np.all(np.diff(a)>=0);
+    
+    def _get_duration(self,path):
+        assert os.path.exists(path), "Cannot open file " + path
+        df = pd.read_csv(path,header=None,delim_whitespace=True);
+        return df[1].values[-1];
         
     def get_grapheme_list(self):
         """
@@ -324,6 +334,10 @@ class Timit:
         assert split=='training' or split=='testing' or split=='validation',\
         "Incorrect split requested - choose {training testing validation}"
         return self._corpusdf.query(split+'==True').index.values;
+    
+    def sort_indexes(self,indexes,by=['duration']):
+        sdf = self._corpusdf.iloc[indexes].sort_values(by)
+        return sdf.index.values
     
     def get_corpus_columns(self,idxs,keys):
         self.check_corpus_init();
