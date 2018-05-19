@@ -22,14 +22,15 @@ def create_folder(folder):
 def curtime():
     return strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
-def initlog(logfile,stdout=True,fmt=None,level=logging.INFO):
+def initlog(logfile=None,stdout=True,fmt=None,level=logging.INFO):
     if not fmt:
         fmt = "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
     logfmt = logging.Formatter(fmt);
     rootlog = logging.getLogger();
-    fileHandler = logging.FileHandler(logfile);
-    fileHandler.setFormatter(logfmt)
-    rootlog.addHandler(fileHandler)
+    if os.path.exists(logfile):
+        fileHandler = logging.FileHandler(logfile);
+        fileHandler.setFormatter(logfmt)
+        rootlog.addHandler(fileHandler)
     if stdout:
         conshandler = logging.StreamHandler(sys.stdout)
         conshandler.setFormatter(logfmt)
