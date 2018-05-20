@@ -27,7 +27,7 @@ def initlog(logfile=None,stdout=True,fmt=None,level=logging.INFO):
         fmt = "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
     logfmt = logging.Formatter(fmt);
     rootlog = logging.getLogger();
-    if os.path.exists(logfile):
+    if logfile is not None:
         fileHandler = logging.FileHandler(logfile);
         fileHandler.setFormatter(logfmt)
         rootlog.addHandler(fileHandler)
